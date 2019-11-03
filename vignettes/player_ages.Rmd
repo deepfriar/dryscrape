@@ -1,0 +1,99 @@
+---
+title: "player_ages"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{player_ages}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  eval = FALSE,
+  include = FALSE,
+  error = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r}
+foo <- dplyr::tibble(season = paste0(2010:2018, 2011:2019))
+foo <- dplyr::group_by(foo, .data$season)
+foo <- dplyr::mutate(foo, players = list(dryscrape:::ds.get_all_players(dplyr::first(.data$season))))
+foo <- dplyr::mutate(foo, players = list(dryscrape:::ds.parse_all_players(dplyr::first(.data$players))))
+foo <- tidyr::unnest(foo)
+oof <- foo
+```
+```{r}
+bar <- dplyr::summarise(dplyr::group_by_all(dplyr::select(dplyr::group_by(foo), .data$id)))
+bar <- dplyr::group_by_all(bar)
+bar <- dplyr::mutate(bar,
+                     prof = list(
+                       {
+                         function(i) {
+                           Sys.sleep(2)
+                           dryscrape::ds.get_player_profile(i)
+                         }
+                       }(dplyr::first(.data$id))
+                     ))
+bar <- dplyr::mutate(bar, prof = list(dryscrape:::ds.parse_profile(dplyr::first(.data$prof))))
+bar <- tidyr::unnest(bar)
+
+bar <- dplyr::mutate(bar,
+                     first_name = toupper(.data$firstName),
+                     last_name  = toupper(.data$lastName))
+
+saveRDS(bar, "profiles.rds")
+```
+```{r}
+bar <- readRDS("profiles.rds")
+```
+```{r}
+foo <- oof
+foo <- dplyr::left_join(foo, bar)
+foo <- dplyr::mutate(foo, team = qdap::multigsub(c("NJD", "PHX", "LAK", "TBL", "SJS"),
+                                                 c("N.J", "ARI", "L.A", "T.B", "S.J"),
+                                                 .data$team))
+foo <- dplyr::mutate(foo, player_name = paste0(.data$first_name, ".", .data$last_name))
+foo <- dplyr::select(foo, -.data$first_name, -.data$last_name)
+foo <- dplyr::mutate(foo, player_name = dryscrape::ds.fix_names(.data$player_name))
+foo <- dryscrape::ds.5ebastian(foo)
+```
+```{r}
+compiled_games <- dplyr::tibble(season = paste0(2010:2018, 2011:2019))
+compiled_games <- dplyr::mutate(compiled_games, filename = paste0("~/nhlgamedata/compiled/", .data$season, ".rds"))
+compiled_games <- dplyr::group_by(compiled_games, .data$season)
+compiled_games <- dplyr::mutate(compiled_games, games = list(readRDS(dplyr::first(.data$filename))))
+
+compiled_games <- dplyr::transmute(compiled_games, roster = list(getElement(dplyr::first(.data$games), "Roster")))
+compiled_games <- tidyr::unnest(compiled_games)
+
+compiled_games <- dplyr::mutate(compiled_games, player_name = dryscrape::ds.mung_names(.data$player_name))
+compiled_games <- dryscrape::ds.5ebastian(compiled_games)
+```
+```{r}
+setdiff(compiled_games$player_name, foo$player_name)
+
+# TODO: who tf is jamie phillips, the phantom of game 2 for 2017-18 WPG against MNW
+saveRDS(foo, "player_ages.rds")
+```
+```{r}
+player_ages <- readRDS("player_ages.rds")
+# player_ages <- salo::player_ages
+
+player_ages <- dplyr::group_by(player_ages)
+player_ages <- dplyr::select(player_ages, -.data$team, -.data$id1, -.data$pos, -.data$season)
+player_ages <- dplyr::group_by_all(player_ages)
+player_ages <- dplyr::summarise(player_ages)
+player_ages <- dplyr::group_by(player_ages, .data$player_name)
+player_ages <- dplyr::mutate(player_ages, birthDate = list(data.frame(val = unlist(stringr::str_split(dplyr::first(.data$birthDate), "-")),
+                                                                      var = c("birthYear", "birthMonth", "birthDay"),
+                                                                      stringsAsFactors = FALSE)))
+player_ages <- tidyr::unnest(player_ages)
+player_ages <- tidyr::spread(player_ages, .data$var, .data$val)
+
+save(player_ages, file="../../salo/data/player_ages.RData", compress="xz")
+```
