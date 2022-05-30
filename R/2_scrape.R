@@ -305,20 +305,20 @@ ds.scrape_game <- function(season        = "20182019",
         data.frame() %>%
         dplyr::mutate(team = away_team_)
     )
-    
+
     shifts_df <- shifts_df %>%
-      data.frame() 
-    
+      data.frame()
+
     shifts_df <- shifts_df %>%
       dplyr::rename(shift_number   = .data$X1,
                     game_period    = .data$X2,
                     shift_start    = .data$X3,
                     shift_end      = .data$X4,
-                    shift_duration = .data$X5) 
-    
+                    shift_duration = .data$X5)
+
     shifts_df <- shifts_df %>%
-      dplyr::select(.data$shift_number:.data$shift_duration, .data$num_first_last, .data$team, .data$venue) 
-    
+      dplyr::select(.data$shift_number:.data$shift_duration, .data$num_first_last, .data$team, .data$venue)
+
     shifts_df <- shifts_df %>%
       dplyr::mutate(game_date = game_date_,
                     game_id   = game_id_unique,
@@ -370,7 +370,7 @@ ds.scrape_game <- function(season        = "20182019",
                  "/feed/live?site=en_nhl",
                  sep = ""
     )
-    
+
     raw_json <- ds.pull_JSON(url, agents, try_tolerance)
 
     home_roster <- raw_json$liveData$boxscore$teams$home
@@ -514,7 +514,7 @@ ds.scrape_game <- function(season        = "20182019",
 }
 
 #' Scrape Team Profile
-#' \code{scrape_team_profile()} collects and parses the data for a team corresponsing to a given team ID
+#' \code{scrape_team_profile()} collects and parses the data for a team corresponding to a given team ID
 #' @inheritParams ds.get_team_profile
 #' @return a data.frame
 #' @export
